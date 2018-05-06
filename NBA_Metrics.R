@@ -95,19 +95,27 @@ nba.df2 <- read.csv('C:\\Users\\Owner\\Documents\\Spring 2018\\NBA\\Data\\nba.df
 #################  Section 2  ###################
 #################################################
 
+lastyear <- nba.df2[nba.df2$Year == 2017,]
 #Distributions: improve quality of plots later
-hist(nba.df2$PER)
-hist(nba.df2$VORP)
-hist(nba.df2$WS)
-
-#######Add correlation with salary###############
+hist(lastyear$PER)
+hist(lastyear$VORP)
+hist(lastyear$WS)
 
 #################################################
 ################  Section 3  ####################
 #################################################
+m <- 3000
+k <- 1000
+mse.rf <- double(10)
+mse.lm <- double(10)
+mse.rf.ss <- double(10)
+r2.rf <- double(10)
+r2.lm <- double(10)
+r2.rf.ss <- double(10)
+control.sim <- rpart.control(minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
 
-#Using Only Years before the 2016-2017 Season (Not sure about this choice)
-nba.df2_15 <- nba.df2[nba.df2$Year < 2017,]
+#Using Only Years between 2001-2002 the 2015-2016 Season (Not sure about this choice)
+nba.df2_15 <- nba.df2[nba.df2$Year < 2017 & nba.df2$Year > 2001,]
 
 #################### PER ########################
 
@@ -123,15 +131,17 @@ for(i in 1:10){
   df.train <- nba.df2_15_PER[-testIndexes, ]
   
   # Build the RF:
-  rf <- randomForest(PER~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24])
+  rf <- randomForest(PER~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24], keep.forest=TRUE)
   mse.rf[i] <- mean((as.numeric(rf$test$predicted) - df.test[,24])^2)
+  r2.rf[i] <- 1 - (sum((df.test$PER - predict(rf,df.test))^2))/(sum((mean(df.test$PER) - df.test$PER)^2))
   
-  # Build the LM
+  #Build the LM
   lm.nba <- lm(PER~.,data=df.train)
-  mse.lm[i] <- mean((predict(lm.nba,df.test[,-24]) - df.test[,24])^2 ) #change indeces of df.test to whatever your response variable is (24)
+  mse.lm[i] <- mean((predict(lm.nba,df.test) - df.test[,24])^2 ) #change indeces of df.test to whatever your response variable is (24)
+  r2.lm[i] <- 1 - (sum((df.test$PER - predict(lm.nba,df.test))^2))/(sum((mean(df.test$PER) - df.test$PER)^2)) 
   
   #Build Subsampled RF:
-  # Select subsamples; use each to build tree and predict; save prediction results in pred.ss
+  #Select subsamples; use each to build tree and predict; save prediction results in pred.ss
   pred.bag.ss <- matrix(0,nrow=m,ncol=nrow(df.test))
   pred.rf.ss <- matrix(0,nrow=m,ncol=nrow(df.test))
   for (j in 1:m) {
@@ -143,13 +153,18 @@ for(i in 1:10){
     pred.rf.ss[j,] <- rf.ss$test$predicted
   }
   # save average prediction
-  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2)
+  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2) 
+  r2.rf.ss[i] <- 1 - (sum((apply(pred.rf.ss,2,mean) - df.test[,24])^2))/(sum((mean(df.test$PER) - df.test[,24])^2))
 }
 
 ## RESULTS  ##
 mean(mse.rf)
 mean(mse.lm)
 mean(mse.rf.ss)
+mean(r2.rf)
+mean(r2.lm)
+mean(r2.rf.ss)
+
 
 #################### VORP #######################
 
@@ -165,13 +180,17 @@ for(i in 1:10){
   df.train <- nba.df2_15_VORP[-testIndexes, ]
   
   # Build the RF:
-  rf <- randomForest(VORP~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24])
+  rf <- randomForest(VORP~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24], keep.forest=TRUE)
   mse.rf[i] <- mean((as.numeric(rf$test$predicted) - df.test[,24])^2)
+  r2.rf[i] <- 1 - (sum((df.test$VORP - predict(rf,df.test))^2))/(sum((mean(df.test$VORP) - df.test$VORP)^2))
   
+    
   # Build the LM
   lm.nba <- lm(VORP~.,data=df.train)
   mse.lm[i] <- mean((predict(lm.nba,df.test[,-24]) - df.test[,24])^2 ) #change indeces of df.test to whatever your response variable is (24)
+  r2.lm[i] <- 1 - (sum((df.test$VORP - predict(lm.nba,df.test))^2))/(sum((mean(df.test$VORP) - df.test$VORP)^2)) 
   
+    
   #Build Subsampled RF:
   # Select subsamples; use each to build tree and predict; save prediction results in pred.ss
   pred.bag.ss <- matrix(0,nrow=m,ncol=nrow(df.test))
@@ -185,13 +204,17 @@ for(i in 1:10){
     pred.rf.ss[j,] <- rf.ss$test$predicted
   }
   # save average prediction
-  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2)
+  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2) 
+  r2.rf.ss[i] <- 1 - (sum((apply(pred.rf.ss,2,mean) - df.test[,24])^2))/(sum((mean(df.test$VORP) - df.test[,24])^2))
 }
 
 ## RESULTS  ##
 mean(mse.rf)
 mean(mse.lm)
 mean(mse.rf.ss)
+mean(r2.rf)
+mean(r2.lm)
+mean(r2.rf.ss)
 
 ###################### WS #######################
 
@@ -207,12 +230,15 @@ for(i in 1:10){
   df.train <- nba.df2_15_WS[-testIndexes, ]
   
   # Build the RF:
-  rf <- randomForest(WS~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24])
+  rf <- randomForest(WS~.,data=df.train,importance=FALSE,xtest=df.test[,-24],ytest=df.test[,24], keep.forest=TRUE)
   mse.rf[i] <- mean((as.numeric(rf$test$predicted) - df.test[,24])^2)
+  r2.rf[i] <- 1 - (sum((df.test$WS - predict(rf,df.test))^2))/(sum((mean(df.test$WS) - df.test$WS)^2))
   
   # Build the LM
   lm.nba <- lm(WS~.,data=df.train)
   mse.lm[i] <- mean((predict(lm.nba,df.test[,-24]) - df.test[,24])^2 ) #change indeces of df.test to whatever your response variable is (24)
+  r2.lm[i] <- 1 - (sum((df.test$WS - predict(lm.nba,df.test))^2))/(sum((mean(df.test$WS) - df.test$WS)^2)) 
+  
   
   #Build Subsampled RF:
   # Select subsamples; use each to build tree and predict; save prediction results in pred.ss
@@ -227,17 +253,18 @@ for(i in 1:10){
     pred.rf.ss[j,] <- rf.ss$test$predicted
   }
   # save average prediction
-  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2)
+  mse.rf.ss[i] <- mean((apply(pred.rf.ss,2,mean) - df.test[,24])^2) 
+  r2.rf.ss[i] <- 1 - (sum((apply(pred.rf.ss,2,mean) - df.test[,24])^2))/(sum((mean(df.test$WS) - df.test[,24])^2))
 }
 
 ## RESULTS  ##
 mean(mse.rf)
 mean(mse.lm)
 mean(mse.rf.ss)
+mean(r2.rf)
+mean(r2.lm)
+mean(r2.rf.ss)
 
-###############################################
-################  Section 4  ##################
-###############################################
 
 ############## Variable Importance ############ (Possible use tables instead of plots to save space)
 
@@ -296,7 +323,60 @@ boxplot(imp.mat[,order(apply(-imp.mat,2,mean))],names=nba.names[order(apply(-imp
 axis(1,at=1:22,labels=FALSE)
 text(1:22,-0.15, srt = 45, adj = 1, labels = nba.names[order(apply(-imp.mat,2,mean))],xpd = TRUE)
 
+###############################################
+################  Section 4  ##################
+###############################################
+
+################ Hypothesis Tests #################
+
+#PER full vs reduced model
+lm.1 <- lm(PER~.,data=nba.df2_15_PER)
+lm.2 <- lm(PER~.-MP,data=nba.df2_15_PER)
+anova(lm.1,lm.2,test="Chisq")
+
+#VORP Full vs reduced
+#First define train and test sets:
+test.ind <- sample(1:dim(nba.df2_15_VORP)[1],30,replace=FALSE)
+nba.train <- nba.df2_15_VORP[-test.ind,]
+nba.test <- nba.df2_15_VORP[test.ind,]
+nba.train <- nba.train[,c(24,seq(1,23,1))]
+nba.test <- nba.test[,c(24,seq(1,23,1))]
+names(nba.train)[1] <- "y"
+names(nba.test)[1] <- "y"
+
+test.VORP <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("ASTp", "X2P", "X2PA", "X3P", "X3PA", "FT", "USGp", "TOV", "FTA", "ORB", "AST", "BLKp", "PF", "STLp", "DRBp", "ORBp", "Year", "STL", "BLK", "DRB", "TOVp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+
+#WS Full vs reduced
+#First define train and test sets:
+test.ind <- sample(1:dim(nba.df2_15_WS)[1],30,replace=FALSE)
+nba.train <- nba.df2_15_WS[-test.ind,]
+nba.test <- nba.df2_15_WS[test.ind,]
+nba.train <- nba.train[,c(24,seq(1,23,1))]
+nba.test <- nba.test[,c(24,seq(1,23,1))]
+names(nba.train)[1] <- "y"
+names(nba.test)[1] <- "y"
+
+test.WS <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("ASTp" ,"X2P", "X2PA", "X3P", "X3PA", "FT", "USGp", "TOV", "FTA", "ORB", "AST", "BLKp", "PF", "STLp", "DRBp", "ORBp", "Year", "STL", "BLK", "DRB", "TOVp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+
 ############### Marginal Influence ################
+
+#Defining the Test Set:
+test.mp <- data.frame(matrix(as.numeric(apply(nba.df2_15_VORP,2,mean)),byrow=T,ncol=dim(nba.df2_15_VORP)[2],nrow=15))
+names(test.mp) <- names(nba.df2_15_VORP)
+test.mp$MP <- seq(1,15,1)
+test.mp$Season <- rep(2012,15)
+
+nba.df.hyptest <- nba.df2_15_VORP[,c(24,seq(1,23,1))]
+test.mp <- test.mp[,c(24,seq(1,23,1))]
+names(nba.df.hyptest)[1] <- "y"
+names(test.mp)[1] <- "y"
+
+mp.preds <- New.Bagged.Inf(train=nba.df.hyptest,test=test.mp,testvars=c(5),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+
+plot(seq(1,15,1),mp.preds$pred,ylim=c(-2.55,0),pch=20,xlab="Minutes Played",ylab="VORP",main="Marginal Effect of Minutes Played")
+#points(seq(2000,2014,1),as.numeric(aggregate(nba.df$RAPM,by=list(year=nba.df$Season),mean)$x),pch=18,col='red')
+lines(1:15,mp.preds$lbounds,type="b",col='blue',pch=20,lwd=2)
+lines(1:15,mp.preds$ubounds,type="b",col='blue',pch=20,lwd=2)
 
 
 
