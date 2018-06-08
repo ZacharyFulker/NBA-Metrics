@@ -116,6 +116,7 @@ control.sim <- rpart.control(minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate
 
 #Using Only Years between 2001-2002 the 2015-2016 Season (Not sure about this choice)
 nba.df2_15 <- nba.df2[nba.df2$Year < 2017 & nba.df2$Year > 2001,]
+nba.df2_16 <- nba.df2[nba.df2$Year > 2001,]
 
 #################### PER ########################
 
@@ -358,88 +359,27 @@ names(nba.test)[1] <- "y"
 
 test.WS <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("ASTp" ,"X2P", "X2PA", "X3P", "X3PA", "FT", "USGp", "TOV", "FTA", "ORB", "AST", "BLKp", "PF", "STLp", "DRBp", "ORBp", "Year", "STL", "BLK", "DRB", "TOVp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
 
-############### Marginal Influence ################
+####################Predicting 16/17############################
+#Predicting 2016-2017 VORP 
+nba.df2_16_VORP <- subset(nba.df2_16, select = c(Year, X3P, X3PA, X2P, X2PA, FT, FTA, ORB, DRB, AST, STL, BLK, TOV, PF, TSp, ORBp, DRBp, ASTp, STLp, BLKp, TOVp, USGp, MP, VORP))
 
-#Defining the Test Set:
-test.mp <- data.frame(matrix(as.numeric(apply(nba.df2_15_VORP,2,mean)),byrow=T,ncol=dim(nba.df2_15_VORP)[2],nrow=15))
-names(test.mp) <- names(nba.df2_15_VORP)
-test.mp$MP <- seq(1,15,1)
-test.mp$Season <- rep(2012,15)
-
-nba.df.hyptest <- nba.df2_15_VORP[,c(24,seq(1,23,1))]
-test.mp <- test.mp[,c(24,seq(1,23,1))]
-names(nba.df.hyptest)[1] <- "y"
-names(test.mp)[1] <- "y"
-
-mp.preds <- New.Bagged.Inf(train=nba.df.hyptest,test=test.mp,testvars=c(5),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-
-plot(seq(1,15,1),mp.preds$pred,ylim=c(-2.55,0),pch=20,xlab="Minutes Played",ylab="VORP",main="Marginal Effect of Minutes Played")
-#points(seq(2000,2014,1),as.numeric(aggregate(nba.df$RAPM,by=list(year=nba.df$Season),mean)$x),pch=18,col='red')
-lines(1:15,mp.preds$lbounds,type="b",col='blue',pch=20,lwd=2)
-lines(1:15,mp.preds$ubounds,type="b",col='blue',pch=20,lwd=2)
-
-
-
-
-
-
-
-
-
-
-
-
-
-############################################
-#Hypothesis Test
-test.ind <- sample(1:dim(nba.df2_15v)[1],30,replace=FALSE)
-nba.train <- nba.df2_15v[-test.ind,]
-nba.test <- nba.df2_15v[test.ind,]
-nba.train <- nba.train[,c(22,seq(1,21,1),23)]
-nba.test <- nba.test[,c(22,seq(1,21,1),23)]
-names(nba.train)[1] <- "y"
-names(nba.test)[1] <- "y"
-
-#All variables besides our metric insignificant: 
-test <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("Year", "X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-print(test)
-
-#Our metric significant by itself:
-test1 <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("Metric")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-print(test1)
-
-############################################
-#Predicting 2016-2017 Win Shares / VORP 
-
-#Training and Test sets split based on year
-nba.train.17 <- nba.df2[nba.df2$Year<=2016,]
-nba.test.17 <- nba.df2[nba.df2$Year==2017,]
-
-#Only the Variables we want included in the model are retained and response variable name changed to y
-nba.train.17 <- nba.train.17[,c(34,1,36)] #All traditional and advanced box score stats: 1,2:14,16,19:20,22:26,35
-nba.test.17 <- nba.test.17[,c(34,1,36)] #All traditional and advanced box score stats: 1,2:14,16,19:20,22:26,35
+#VORP Full vs reduced
+#First define train and test sets:
+nba.train.17 <- nba.df2_16_VORP[nba.df2_16_VORP$Year<=2016,]
+nba.test.17 <- nba.df2_16_VORP[nba.df2_16_VORP$Year==2017,]
+nba.train.17 <- nba.train.17[,c(24,seq(1,23,1))]
+nba.test.17 <- nba.test.17[,c(24,seq(1,23,1))]
 names(nba.train.17)[1] <- "y"
 names(nba.test.17)[1] <- "y"
 
-#Remove year variable
-nba.train.17 <- nba.train.17[,-which(names(nba.train.17)=="Year")]
-nba.test.17 <- nba.test.17[,-which(names(nba.test.17)=="Year")]
-
-#Create Objects that hold bagged inf and new bagged inf information for both WS and VORP (.v). newmet suggests use of only the new metric. newinf suggests use of the NEW bagged inference function. YOU CHOOSE VARIABLES IN THE PREVIOUS STEP... THIS IS SAVING RESULTS IN DIFFERENT OBJECTS.  YOU DON'T NEED TO RUN ALL OF THESE.
-pred.17 <- Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "TSp", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-pred.17.v <- Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "TSp", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-pred.17.newinf <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "TSp", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-pred.17.newinf.v <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "TSp", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-pred.17.newinf.v.all <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "TSp", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
-pred.17.newinf.v.newmet <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("Metric")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+pred.VORP.17 <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("ASTp", "X2P", "X2PA", "X3P", "X3PA", "FT", "USGp", "TOV", "FTA", "ORB", "AST", "BLKp", "PF", "STLp", "DRBp", "ORBp", "Year", "STL", "BLK", "DRB", "TOVp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
 
 #Save information from bagged inf in separate objects (can change this code based on 1 of 6 objects above^)
-preds.order <- pred.17.newinf.v.newmet$pred[order(pred.17.newinf.v.newmet$pred)]
-lbounds.order <- pred.17.newinf.v.newmet$lbounds[order(pred.17.newinf.v.newmet$pred)]
-ubounds.order <- pred.17.newinf.v.newmet$ubounds[order(pred.17.newinf.v.newmet$pred)]
-true.preds <- nba.test.17$y[order(pred.17.newinf.v.newmet$pred)]
-true.names <- nba.df2$Name[nba.df2$Year==2017][order(pred.17.newinf.v.newmet$pred)] 
-
+preds.order <- pred.VORP.17$pred[order(pred.VORP.17$pred)]
+lbounds.order <- pred.VORP.17$lbounds[order(pred.VORP.17$pred)]
+ubounds.order <- pred.VORP.17$ubounds[order(pred.VORP.17$pred)]
+true.preds <- nba.test.17$y[order(pred.VORP.17$pred)]
+true.names <- nba.df2$Name[nba.df2$Year==2017][order(pred.VORP.17$pred)] 
 
 ###### Best Thirty Players ######
 #Only change this code for window size and axis labels
@@ -476,6 +416,149 @@ points(rs.preds$true.preds,col='red',pch=15,cex=1.05)
 axis(1,at=1:30,labels=FALSE)
 text(1:30, -4.2, srt = 45, adj = 1, labels = rs.preds$true.names, col=col.red,xpd = TRUE)
 box()
+
+
+##Predicting 2016-2017 WS 
+nba.df2_16_WS <- subset(nba.df2_16, select = c(Year, X3P, X3PA, X2P, X2PA, FT, FTA, ORB, DRB, AST, STL, BLK, TOV, PF, TSp, ORBp, DRBp, ASTp, STLp, BLKp, TOVp, USGp, MP, WS))
+
+#First define train and test sets:
+nba.train.17 <- nba.df2_16_WS[nba.df2_16_WS$Year<=2016,]
+nba.test.17 <- nba.df2_16_WS[nba.df2_16_WS$Year==2017,]
+nba.train.17 <- nba.train.17[,c(24,seq(1,23,1))]
+nba.test.17 <- nba.test.17[,c(24,seq(1,23,1))]
+names(nba.train.17)[1] <- "y"
+names(nba.test.17)[1] <- "y"
+
+pred.WS.17 <- New.Bagged.Inf(train=nba.train.17,test=nba.test.17,testvars=which(names(nba.train.17) %in% c("ASTp", "X2P", "X2PA", "X3P", "X3PA", "FT", "USGp", "TOV", "FTA", "ORB", "AST", "BLKp", "PF", "STLp", "DRBp", "ORBp", "Year", "STL", "BLK", "DRB", "TOVp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+
+#Save information from bagged inf in separate objects (can change this code based on 1 of 6 objects above^)
+preds.order <- pred.WS.17$pred[order(pred.WS.17$pred)]
+lbounds.order <- pred.WS.17$lbounds[order(pred.WS.17$pred)]
+ubounds.order <- pred.WS.17$ubounds[order(pred.WS.17$pred)]
+true.preds <- nba.test.17$y[order(pred.WS.17$pred)]
+true.names <- nba.df2$Name[nba.df2$Year==2017][order(pred.WS.17$pred)] 
+
+###### Best Thirty Players ######
+#Only change this code for window size and axis labels
+par(mar = c(8, 4, 4, 2) + 0.1)
+plot(preds.order[457:486],type="b",ylim=c(-1,15),pch=20,xaxt="n",ylab="WS",xlab="",main="2016-2017 Predicted VORP")
+lines(preds.order[457:486],col='black',type='l',lwd=2)
+lines(lbounds.order[457:486],col='blue',type='l',lwd=2)
+lines(ubounds.order[457:486],col='blue',type='l',lwd=2)
+points(true.preds[457:486],col='red',pch=15,cex=1.05)
+
+#Plotting true Metrics
+pred.wild <- which((true.preds[457:486]<lbounds.order[457:486]) | (true.preds[457:486]>ubounds.order[457:486]))
+points(pred.wild,true.preds[457:486][pred.wild],pch=8,cex=1.5,col='red')
+col.red <- rep('black',30)
+col.red[pred.wild] <- 'red'
+
+#Adding names
+axis(1,at=1:30,labels=FALSE)
+text(1:30, -2.5, srt = 45, adj = 1, labels = true.names[457:486], col=col.red,xpd = TRUE)
+box()
+
+###### random thirty players ######
+pred.17.order <- data.frame(preds.order,lbounds.order,ubounds.order,true.preds,true.names)
+rs.preds <- pred.17.order[sample(nrow(pred.17.order),486),]
+rs.preds <- pred.17.order[sample(nrow(pred.17.order),30),]
+
+par(mar = c(8, 4, 4, 2) + 0.1)
+plot(rs.preds$preds.order,type="b",ylim=c(-3,10),pch=20,xaxt="n",ylab="WS",xlab="",main="2016-2017 Predicted VORP")
+lines(rs.preds$preds.order,col='black',type='l',lwd=2)
+lines(rs.preds$lbounds.order,col='blue',type='l',lwd=2)
+lines(rs.preds$ubounds.order,col='blue',type='l',lwd=2)
+points(rs.preds$true.preds,col='red',pch=15,cex=1.05)
+
+axis(1,at=1:30,labels=FALSE)
+text(1:30, -4.2, srt = 45, adj = 1, labels = rs.preds$true.names, col=col.red,xpd = TRUE)
+box()
+
+###############################################
+################  Section 5  ##################
+###############################################
+
+#Discrimination
+library(boot)
+BVar <- function(data, indices){
+  resample <- data[indices, ]
+  PTS <- mean(resample$PTS)
+  FGA <- mean(resample$FGA)
+  FTA <- mean(resample$FTA)
+  TSA <- FGA + (0.44*FTA)
+  TSp <- PTS/(2*TSA)
+  MP <- mean(resample$MIN)
+  metric<- MP*TSp
+  return(metric)
+}
+boxscore <- read.csv("C:/Users/Owner/Documents/Spring 2018/NBA/Data/NBA-2016-2017-Player-BoxScore-Dataset.csv")
+players <- unique(boxscore$PLAYER.FULL.NAME)
+players <- players[ players != 'Danuel House' ]
+BVar.vec <- double(length(players))
+player.season.avg <- double(length(players))
+counter <- 1
+for(player in players){
+  playersubset <- boxscore[which(boxscore$PLAYER.FULL.NAME==player), ]
+  boot.d <- boot(playersubset, statistic = BVar, R = 1000)
+  BVar.vec[counter] <- var(boot.d$t)
+  player.season.avg[counter] <- boot.d$t0 
+  counter<-counter+1
+}
+BVar.vec <- BVar.vec[!is.na(BVar.vec)]
+numerator <- mean(BVar.vec)
+season.avg <- mean(player.season.avg)
+player.var <- sapply(player.season.avg, function(x) (x-season.avg)^2)
+denominator <- mean(player.var)
+discrimination <- 1 - (numerator/denominator)
+print(discrimination)
+
+
+
+
+
+
+
+
+
+############################################
+#Hypothesis Test
+test.ind <- sample(1:dim(nba.df2_15v)[1],30,replace=FALSE)
+nba.train <- nba.df2_15v[-test.ind,]
+nba.test <- nba.df2_15v[test.ind,]
+nba.train <- nba.train[,c(22,seq(1,21,1),23)]
+nba.test <- nba.test[,c(22,seq(1,21,1),23)]
+names(nba.train)[1] <- "y"
+names(nba.test)[1] <- "y"
+
+#All variables besides our metric insignificant: 
+test <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("Year", "X3P", "X3PA", "X2P", "X2PA", "FT", "FTA", "ORB", "DRB", "AST", "STL", "BLK", "TOV", "PF", "ORBp", "DRBp", "ASTp", "STLp", "BLKp", "TOVp", "USGp")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+print(test)
+
+#Our metric significant by itself:
+test1 <- New.Bagged.Inf(train=nba.train,test=nba.test,testvars=which(names(nba.train) %in% c("Metric")),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+print(test1)
+
+############### Marginal Influence ################
+
+#Defining the Test Set:
+test.mp <- data.frame(matrix(as.numeric(apply(nba.df2_15_VORP,2,mean)),byrow=T,ncol=dim(nba.df2_15_VORP)[2],nrow=15))
+names(test.mp) <- names(nba.df2_15_VORP)
+test.mp$MP <- seq(1,15,1)
+test.mp$Season <- rep(2012,15)
+
+nba.df.hyptest <- nba.df2_15_VORP[,c(24,seq(1,23,1))]
+test.mp <- test.mp[,c(24,seq(1,23,1))]
+names(nba.df.hyptest)[1] <- "y"
+names(test.mp)[1] <- "y"
+
+mp.preds <- New.Bagged.Inf(train=nba.df.hyptest,test=test.mp,testvars=c(5),verbose=TRUE,k=750,nx1=50,nmc=1000,minsplit=3,maxcompete=0,maxsurrogate=0,usesurrogate=0)
+
+plot(seq(1,15,1),mp.preds$pred,ylim=c(-2.55,0),pch=20,xlab="Minutes Played",ylab="VORP",main="Marginal Effect of Minutes Played")
+#points(seq(2000,2014,1),as.numeric(aggregate(nba.df$RAPM,by=list(year=nba.df$Season),mean)$x),pch=18,col='red')
+lines(1:15,mp.preds$lbounds,type="b",col='blue',pch=20,lwd=2)
+lines(1:15,mp.preds$ubounds,type="b",col='blue',pch=20,lwd=2)
+
+
 
 ####################################################
 ############### Testing New Metric ##################
